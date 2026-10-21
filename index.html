@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gamebook Studio — Dice of Destiny Series</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #1a1b1e;
+    --panel: #25262b;
+    --panel2: #2c2e33;
+    --border: #373a40;
+    --text: #e9ecef;
+    --muted: #868e96;
+    --accent: #4dabf7;
+    --good: #51cf66;
+    --bad: #ff6b6b;
+    --warn: #fcc419;
+    --secret: #cc5de8;
+    --ink: #1f1f23;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  header h1 span { color: var(--accent); }
+  .toolbar { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+  .toolbar button, .toolbar label.btn {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.35rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .toolbar button:hover, .toolbar label.btn:hover { background: #34363c; border-color: var(--accent); }
+  .toolbar button.primary { background: #1c7ed6; border-color: #1c7ed6; }
+  .toolbar button.primary:hover { background: #1971c2; }
+  .toolbar button.danger { background: #c92a2a; border-color: #c92a2a; }
+  input[type="file"] { display: none; }
+  .status {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--muted);
+    max-width: 280px;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+  nav.tabs {
+    width: 160px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  nav.tabs button {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    text-align: left;
+    padding: 0.65rem 1rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  nav.tabs button:hover { background: var(--panel2); color: var(--text); }
+  nav.tabs button.active {
+    background: var(--panel2);
+    color: var(--text);
+    border-left-color: var(--accent);
+  }
+  .content {
+    flex: 1;
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .panel {
+    display: none;
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+  }
+  .panel.active { display: flex; flex-direction: column; gap: 1rem; }
+  .panel.row { flex-direction: row; gap: 1rem; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+  }
+  .card h2 {
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    color: var(--accent);
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+  }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.4rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  .full { grid-column: 1 / -1; }
+  /* Page browser */
+  .page-browser {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden;
+  }
+  .branch-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  .branch-btns button {
+    flex: 1;
+    min-width: 50px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0.3rem;
+    font-size: 0.7rem;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .branch-btns button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .page-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .page-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .page-btn:hover { border-color: var(--accent); }
+  .page-btn.active { border-color: var(--accent); background: #1c3a5f; }
+  .page-btn .num {
+    font-weight: 700;
+    width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .page-btn .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .page-btn .dot.empty { background: var(--warn); }
+  .page-btn .dot.done { background: var(--good); }
+  .page-btn .dot.ending-good { background: var(--good); }
+  .page-btn .dot.ending-bad { background: var(--bad); }
+  .page-btn .dot.ending-secret { background: var(--secret); }
+  .page-btn .role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+  /* Editor + Preview */
+  .editor-area {
+    flex: 1;
+    display: flex;
+    gap: 1rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+    overflow-y: auto;
+  }
+  .preview-wrap {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .preview-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .preview {
+    background: #f8f7f4;
+    color: var(--ink);
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    aspect-ratio: 612 / 792;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    font-family: "Times New Roman", Times, serif;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+  .preview .inner {
+    position: absolute;
+    inset: 0;
+    padding: 8% 10%;
+    display: flex;
+    flex-direction: column;
+    font-size: 9px;
+    line-height: 1.35;
+  }
+  .preview .track {
+    text-align: center;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 6.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: #333;
+  }
+  .preview .pnum {
+    width: 22px; height: 22px;
+    border: 1.5px solid #222;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    font-size: 9px;
+  }
+  .preview .ptitle {
+    text-align: center;
+    font-weight: 700;
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  .preview .pbody {
+    flex: 1;
+    overflow: hidden;
+    white-space: pre-wrap;
+    font-size: 8.5px;
+  }
+  .preview .prompt-box {
+    border: 1.5px solid #222;
+    padding: 5px 6px;
+    margin-top: 6px;
+    font-size: 7.5px;
+    background: #fff;
+  }
+  .preview .prompt-box .die {
+    font-weight: 700;
+    font-family: Helvetica, Arial, sans-serif;
+    margin-bottom: 2px;
+  }
+  .preview .note {
+    font-style: italic;
+    font-size: 7px;
+    margin-top: 3px;
+    color: #444;
+  }
+  .preview.cover .inner { justify-content: center; text-align: center; }
+  .preview.cover .ctitle { font-size: 16px; font-weight: 700; line-height: 1.2; }
+  .preview.cover .ctag { font-style: italic; margin-top: 10px; font-size: 8px; }
+  .preview.cover .cstart { margin-top: 30px; font-size: 8px; font-weight: 700; }
+  /* Prompt editor */
+  .prompt-editor {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.6rem;
+  }
+  .prompt-editor h3 {
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem;
+    color: var(--muted);
+  }
+  .choice-row, .dice-row {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.3rem;
+    align-items: center;
+  }
+  .choice-row input, .dice-row input { flex: 1; }
+  .choice-row .pg, .dice-row .pg {
+    width: 50px;
+    text-align: center;
+    background: var(--bg);
+    color: var(--muted);
+  }
+  /* Validate */
+  .report {
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .report .ok { color: var(--good); }
+  .report .err { color: var(--bad); }
+  .report .info { color: var(--accent); }
+  /* LLM */
+  #llm-out {
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    min-height: 300px;
+    white-space: pre-wrap;
+  }
+  /* Ledger */
+  .endings-editor textarea { min-height: 200px; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+  .help {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .help code { background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+  @media (max-width: 900px) {
+    .preview-wrap { display: none; }
+    .page-browser { width: 160px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gamebook <span>Studio</span></h1>
+  <div class="toolbar">
+    <button onclick="newProject()">New Skeleton</button>
+    <label class="btn">Open JSON<input type="file" id="file-open" accept=".json" onchange="openFile(event)"></label>
+    <button onclick="saveJSON()">Save JSON</button>
+    <button onclick="importLLMJSON()">Import LLM JSON</button>
+    <button class="primary" onclick="generateLLM()">LLM Author Prompt</button>
+    <button class="primary" onclick="buildPDF()" style="background:#2b8a3e;border-color:#2b8a3e">Build PDF</button>
+  </div>
+  <div class="status" id="status">Ready — load or create a project</div>
+</header>
+<div class="main">
+  <nav class="tabs" id="main-tabs">
+    <button class="active" data-panel="wizard">Wizard</button>
+    <button data-panel="pages">Pages</button>
+    <button data-panel="ledger">Ledger & Meta</button>
+    <button data-panel="validate">Validate</button>
+    <button data-panel="llm">LLM Prompt</button>
+    <button data-panel="help">Help</button>
+  </nav>
+  <div class="content">
+    <!-- WIZARD -->
+    <div class="panel active" id="panel-wizard">
+      <div class="card">
+        <h2>Sequel Wizard</h2>
+        <p class="help" style="margin-bottom:1rem">Fill in the series formula fields, then create a complete 46-page skeleton with every link pre-wired.</p>
+        <div class="form-grid">
+          <div>
+            <label>Title Line 1</label>
+            <input type="text" id="wiz-title1" value="Three Ways">
+          </div>
+          <div>
+            <label>Title Line 2</label>
+            <input type="text" id="wiz-title2" value="From Sunday">
+          </div>
+          <div class="full">
+            <label>Tagline</label>
+            <input type="text" id="wiz-tagline" value="Three kids. Three worlds. Thirteen endings.">
+          </div>
+          <div class="full">
+            <label>Frame World (page 3 setting)</label>
+            <input type="text" id="wiz-frame" value="The Front Porch">
+          </div>
+        </div>
+        <h2 style="margin-top:1.2rem">The Three Heroes</h2>
+        <div class="form-grid three" id="cast-fields"></div>
+        <h2 style="margin-top:1.2rem">The Three Worlds</h2>
+        <div class="form-grid three">
+          <div>
+            <label>World A Name</label>
+            <input type="text" id="wiz-worldA" value="World One">
+            <label style="margin-top:0.4rem">Genre A</label>
+            <input type="text" id="wiz-genreA" value="fantasy">
+          </div>
+          <div>
+            <label>World B Name</label>
+            <input type="text" id="wiz-worldB" value="World Two">
+            <label style="margin-top:0.4rem">Genre B</label>
+            <input type="text" id="wiz-genreB" value="science fiction">
+          </div>
+          <div>
+            <label>World C Name</label>
+            <input type="text" id="wiz-worldC" value="World Three">
+            <label style="margin-top:0.4rem">Genre C</label>
+            <input type="text" id="wiz-genreC" value="historical adventure">
+          </div>
+        </div>
+        <div style="margin-top:1rem">
+          <label>Page 3 Secret Note (routes to page 45)</label>
+          <input type="text" id="wiz-secret" value="If the die rolls off the table and vanishes, go to page 45. Seriously.">
+        </div>
+        <div style="margin-top:1.2rem; display:flex; gap:0.5rem">
+          <button class="primary" onclick="createSkeleton()" style="padding:0.5rem 1.2rem">Create Sequel Skeleton</button>
+          <button onclick="shuffleChaos()" style="padding:0.5rem 1rem">Reshuffle Chaos Table</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGES -->
+    <div class="panel row" id="panel-pages">
+      <div class="page-browser">
+        <div class="branch-btns" id="branch-btns">
+          <button data-branch="ALL" class="active">All</button>
+          <button data-branch="FRONT">Front</button>
+          <button data-branch="A">A</button>
+          <button data-branch="B">B</button>
+          <button data-branch="C">C</button>
+          <button data-branch="BETWEEN">Btwn</button>
+          <button data-branch="BACK">Back</button>
+        </div>
+        <div class="page-list" id="page-list"></div>
+      </div>
+      <div class="editor-area">
+        <div class="editor" id="page-editor">
+          <p class="help">Select a page from the list.</p>
+        </div>
+        <div class="preview-wrap">
+          <div class="preview-label">Print Preview (approx.)</div>
+          <div class="preview" id="preview"><div class="inner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEDGER -->
+    <div class="panel" id="panel-ledger">
+      <div class="card">
+        <h2>Meta & Cover Text</h2>
+        <div class="form-grid">
+          <div><label>PDF Title</label><input type="text" id="meta-pdf_title"></div>
+          <div><label>Footer</label><input type="text" id="meta-footer"></div>
+          <div><label>Title 1</label><input type="text" id="meta-title1"></div>
+          <div><label>Title 2</label><input type="text" id="meta-title2"></div>
+          <div class="full"><label>Tagline</label><input type="text" id="meta-tagline"></div>
+          <div class="full"><label>Kicker</label><input type="text" id="meta-kicker"></div>
+          <div class="full"><label>Starring 1</label><input type="text" id="meta-starring1"></div>
+          <div class="full"><label>Starring 2</label><input type="text" id="meta-starring2"></div>
+          <div class="full"><label>Cover Line</label><input type="text" id="meta-cover_line"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Intro Text</h2>
+        <div class="form-grid">
+          <div class="full"><label>Intro Open</label><textarea id="meta-intro_open" rows="3"></textarea></div>
+          <div class="full"><label>Intro Dice</label><textarea id="meta-intro_dice" rows="2"></textarea></div>
+          <div class="full"><label>Rules (one per line)</label><textarea id="meta-rules" rows="5"></textarea></div>
+          <div class="full"><label>Intro Close</label><textarea id="meta-intro_close" rows="3"></textarea></div>
+          <div class="full"><label>Ledger Close</label><textarea id="meta-ledger_close" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Tracks (world names on page headers)</h2>
+        <div class="form-grid">
+          <div><label>FRAME</label><input type="text" id="track-FRAME"></div>
+          <div><label>A</label><input type="text" id="track-A"></div>
+          <div><label>B</label><input type="text" id="track-B"></div>
+          <div><label>C</label><input type="text" id="track-C"></div>
+          <div><label>BETWEEN</label><input type="text" id="track-BETWEEN"></div>
+        </div>
+      </div>
+      <div class="card endings-editor">
+        <h2>Endings Ledger (JSON)</h2>
+        <p class="help" style="margin-bottom:0.5rem">Edit carefully. Use “Sync ledger titles” to pull current ending page titles into the ledger.</p>
+        <textarea id="endings-json" rows="12"></textarea>
+        <div style="margin-top:0.6rem; display:flex; gap:0.5rem">
+          <button onclick="syncLedger()">Sync Ledger Titles</button>
+          <button onclick="applyLedgerMeta()">Apply Meta & Tracks Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VALIDATE -->
+    <div class="panel" id="panel-validate">
+      <div class="card">
+        <h2>Validation & Formula Report</h2>
+        <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem">
+          <button class="primary" onclick="runValidate()">Run Full Validation</button>
+          <button onclick="runFormulaReport()">Formula Report</button>
+        </div>
+        <div class="report" id="validate-out">Click “Run Full Validation” after loading or creating a project.</div>
+      </div>
+    </div>
+
+    <!-- LLM -->
+    <div class="panel" id="panel-llm">
+      <div class="card">
+        <h2>LLM Author Prompt</h2>
+        <p class="help" style="margin-bottom:0.75rem">
+          Generates a context-injected prompt containing the full formula, your current page topology (including shuffled chaos table), style samples, and the exact JSON schema.
+          Paste into any LLM, then bring the returned JSON back via <strong>Import LLM JSON</strong>.
+        </p>
+        <button class="primary" onclick="generateLLM()">Generate Prompt</button>
+        <button onclick="copyLLM()" style="margin-left:0.4rem">Copy to Clipboard</button>
+        <textarea id="llm-out" style="margin-top:0.75rem; width:100%" readonly></textarea>
+      </div>
+    </div>
+
+    <!-- HELP -->
+    <div class="panel" id="panel-help">
+      <div class="card">
+        <h2>Gamebook Studio (Web)</h2>
+        <div class="help">
+          <p>Port of the Dice of Destiny series authoring tool for the browser / GitHub Pages.</p>
+          <br>
+          <p><strong>Workflow</strong></p>
+          <ol style="margin-left:1.2rem; margin-top:0.4rem">
+            <li>Use the <strong>Wizard</strong> to create a 46-page skeleton (all links formula-locked).</li>
+            <li>Go to <strong>Pages</strong>, pick a page, write the title + body. Choice wording and dice range labels are editable; targets are locked.</li>
+            <li>Orange dots = still placeholder text. Green = written. Ending colors indicate good / funny / secret.</li>
+            <li><strong>Ledger & Meta</strong> for cover/intro/footer text and the endings checklist.</li>
+            <li><strong>Validate</strong> checks links, reachability, ledger match, and formula compliance.</li>
+            <li><strong>LLM Author Prompt</strong> produces a ready-to-paste prompt so a language model can draft a full sequel JSON.</li>
+            <li>Save / Open projects as plain <code>.json</code> files.</li>
+          </ol>
+          <br>
+          <p><strong>Secrets</strong></p>
+          <p>Page 3 must carry the classic hidden trigger routed to page 45. Extra secrets can be added on any dice page via the italic note + target page fields; the validator inventories them.</p>
+          <br>
+          <p><strong>PDF</strong></p>
+          <p>Click <strong>Build PDF</strong> in the toolbar to generate and download a full multi-page letter-size PDF of the entire book (cover, intro, all story pages, ledger). The layout approximates the published series style.</p>
+          <br>
+          <p>Projects are plain JSON — safe to diff, share, and version-control.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+//  SERIES FORMULA (canonical topology)
+// =====================================================================
+const CHAOS_POOL = [6, 13, 19, 21, 24, 34, 36, 38, 40, 44, 30, 31];
+
+const FORMULA = {
+  1:  {kind:"cover",  branch:"FRONT",   role:"cover"},
+  2:  {kind:"intro",  branch:"FRONT",   role:"how to play"},
+  3:  {kind:"story",  branch:"FRONT",   role:"start: d4 cast roll + d6 doors + SECRET note",
+       ptype:"dice", die:"d6",
+       rows:[["1 – 2",4],["3 – 4",18],["5 – 6",32]], note_page:45},
+  4:  {kind:"story",  branch:"A", role:"arrival", ptype:"choices", targets:[5,6]},
+  5:  {kind:"story",  branch:"A", role:"gate: meet the gatekeeper", ptype:"dice", die:"d6",
+       rows:[["1 – 2",7],["3 – 4",8],["5 – 6",9]]},
+  6:  {kind:"story",  branch:"A", role:"fork: bazaar / temptation", ptype:"choices", targets:[11,10]},
+  7:  {kind:"story",  branch:"A", role:"fork: the low place (trapped)", ptype:"choices", targets:[12,8]},
+  8:  {kind:"story",  branch:"A", role:"fork: the guide explains the quest", ptype:"choices", targets:[12,13]},
+  9:  {kind:"story",  branch:"A", role:"fork: triumph at the gate", ptype:"choices", targets:[12,13]},
+  10: {kind:"story",  branch:"A", role:"FUNNY ENDING: temptation", ptype:"ending", flavor:"bad"},
+  11: {kind:"story",  branch:"A", role:"fork: the key item", ptype:"choices", targets:[12,13]},
+  12: {kind:"story",  branch:"A", role:"gate: the guardian's trade", ptype:"dice", die:"d10",
+       rows:[["1 – 4",15],["5 – 10",16]]},
+  13: {kind:"story",  branch:"A", role:"gate: the locked door", ptype:"dice", die:"d8",
+       rows:[["Even (2, 4, 6, 8)",14],["Odd (1, 3, 5, 7)",7]]},
+  14: {kind:"story",  branch:"A", role:"fork: the vault (greed test)", ptype:"choices", targets:[17,15]},
+  15: {kind:"story",  branch:"A", role:"FUNNY ENDING: the penalty", ptype:"ending", flavor:"bad"},
+  16: {kind:"story",  branch:"A", role:"GOOD ENDING: quest complete", ptype:"ending", flavor:"good"},
+  17: {kind:"story",  branch:"A", role:"GOOD ENDING: kindness route", ptype:"ending", flavor:"good"},
+  18: {kind:"story",  branch:"B", role:"arrival", ptype:"choices", targets:[19,20]},
+  19: {kind:"story",  branch:"B", role:"fork: the informant", ptype:"choices", targets:[22,23]},
+  20: {kind:"story",  branch:"B", role:"gate: the wild ride", ptype:"dice", die:"d4",
+       rows:[["1",27],["2 – 3",21],["4",29]]},
+  21: {kind:"story",  branch:"B", role:"gate: the riddle door", ptype:"dice", die:"d8",
+       rows:[["Even (2, 4, 6, 8)",24],["Odd (1, 3, 5, 7)",22]]},
+  22: {kind:"story",  branch:"B", role:"fork: the allies' two plans", ptype:"choices", targets:[25,26]},
+  23: {kind:"story",  branch:"B", role:"passage: the keeper's gift", ptype:"goto", goto:28},
+  24: {kind:"story",  branch:"B", role:"fork: the lonely power (kindness vs the plug)", ptype:"choices", targets:[31,30]},
+  25: {kind:"story",  branch:"B", role:"gate: the big careful task", ptype:"dice", die:"d20",
+       rows:[["1 – 9",30],["10 – 20",31]]},
+  26: {kind:"story",  branch:"B", role:"gate: the high climb", ptype:"dice", die:"d6",
+       rows:[["1 – 2",27],["3 – 6",31]]},
+  27: {kind:"story",  branch:"B", role:"FUNNY ENDING: captured by fame/fate", ptype:"ending", flavor:"bad"},
+  28: {kind:"story",  branch:"B", role:"CHAOS: d12 anywhere-table", ptype:"dice", die:"d12",
+       rows: Array.from({length:12}, (_,i) => [String(i+1), CHAOS_POOL[i]])},
+  29: {kind:"story",  branch:"B", role:"GOOD ENDING: the lucky exit", ptype:"ending", flavor:"good"},
+  30: {kind:"story",  branch:"B", role:"FUNNY ENDING: the sentence", ptype:"ending", flavor:"bad"},
+  31: {kind:"story",  branch:"B", role:"GOOD ENDING: the world saved", ptype:"ending", flavor:"good"},
+  32: {kind:"story",  branch:"C", role:"arrival", ptype:"choices", targets:[33,34]},
+  33: {kind:"story",  branch:"C", role:"passage: travelers met", ptype:"goto", goto:35},
+  34: {kind:"story",  branch:"C", role:"fork: the settlement", ptype:"choices", targets:[36,37]},
+  35: {kind:"story",  branch:"C", role:"gate: the dangerous crossing", ptype:"dice", die:"d10",
+       rows:[["1 – 4",38],["5 – 10",39]]},
+  36: {kind:"story",  branch:"C", role:"gate: the contract trap", ptype:"dice", die:"d6",
+       rows:[["1 – 3",40],["4 – 6",41]]},
+  37: {kind:"story",  branch:"C", role:"fork: the small rescue", ptype:"choices", targets:[39,33]},
+  38: {kind:"story",  branch:"C", role:"FUNNY ENDING: swept up", ptype:"ending", flavor:"bad"},
+  39: {kind:"story",  branch:"C", role:"gate: the wise one's riddle", ptype:"dice", die:"d4",
+       rows:[["1  (wrong)",40],["2 – 3  (close)",41],["4  (perfect)",43]]},
+  40: {kind:"story",  branch:"C", role:"FUNNY ENDING: the long contract", ptype:"ending", flavor:"bad"},
+  41: {kind:"story",  branch:"C", role:"fork: race the deadline + 'keep the magic thing' gag", ptype:"choices", targets:[42,44]},
+  42: {kind:"story",  branch:"C", role:"GOOD ENDING: the race won", ptype:"ending", flavor:"good"},
+  43: {kind:"story",  branch:"C", role:"GOOD ENDING: perfect answer", ptype:"ending", flavor:"good"},
+  44: {kind:"story",  branch:"BETWEEN", role:"hub between worlds", ptype:"dice", die:"d6",
+       rows:[["1 – 2",4],["3 – 4",18],["5 – 6",32]]},
+  45: {kind:"story",  branch:"BETWEEN", role:"SECRET ENDING", ptype:"ending", flavor:"secret"},
+  46: {kind:"ledger", branch:"BACK", role:"endings ledger"}
+};
+
+const BRANCH_RANGES = {
+  FRONT:[1,3], A:[4,17], B:[18,31], C:[32,43], BETWEEN:[44,45], BACK:[46,46]
+};
+
+const GUIDANCE = {
+  arrival: "Arrival scene: land the kids in the new world with two or three vivid sensory details and one sign/joke. End facing the two options below.",
+  gate: "Encounter page: introduce the obstacle or character, build to the moment of chance, then hand the moment to the die.",
+  fork: "Decision page: a character or discovery lays out exactly two paths. Make both tempting.",
+  passage: "Connective page: a gift, a guide, or a discovery that moves the heroes onward. One page, one beat.",
+  start: "The frame story: introduce the three kids, the dice, and the three doors/vehicles/exhibits. Roll d4 for who goes first, d6 for the door, keep the SECRET note at the bottom.",
+  chaos: "The chaos page: a transport with twelve unlabeled destinations. Lean into 'no telling where you'll land.'",
+  hub: "The between-worlds hub: an impossible place connecting all three branches, with one deadpan attendant.",
+  "ending-good": "GOOD ENDING: pay off the branch's quest, give every kid a moment, send them home with a small magical souvenir.",
+  "ending-bad": "FUNNY ENDING: never deadly - a ridiculous forever. A contract, a contest, a transformation. Silver lining in the last line.",
+  "ending-secret": "SECRET ENDING: triggered only by the hidden rule on page 3. The rarest, silliest honor in the book."
+};
+
+const STYLE_SAMPLES = `STYLE SAMPLE 1 (an encounter page):
+  "The Great Gate is guarded by a golem built of boiler plate and bell
+  metal, tall as a bus standing on its end. As you approach, one eye
+  lights up like a furnace door, then the other. ... Its huge hand
+  sweeps down toward you - but is it grabbing, blocking, or offering a
+  lift? You'll know in about one second."  [then: ROLL THE D6]
+
+STYLE SAMPLE 2 (a funny ending):
+  "Turns out the ravine pond hosts the forest's famous Frog Chorus,
+  you've just been drafted as sopranos, and the next concert is in five
+  minutes. The good news: Pip's croak is genuinely beautiful. The bad
+  news: the concert season runs for ninety years."
+
+STYLE SAMPLE 3 (a good ending):
+  "She knights you on the spot: Dame Vera, Sir Max, and Dame Pip of the
+  Order of the Cog. The golem cries oily tears. ... a door of warm
+  brass light opens - straight back to the attic, where the rain has
+  just ended."`;
+
+const SCHEMA_DOC = `JSON SCHEMA (return EXACTLY this structure, nothing else):
+{
+  "meta": { "pdf_title": str, "title1": str, "title2": str,
+            "kicker": str, "tagline": str, "starring1": str,
+            "starring2": str, "cover_line": str, "footer": str,
+            "start_page": 3, "ledger_page": 46,
+            "intro_open": str, "intro_dice": str, "rules": [str x5],
+            "intro_close": str, "ledger_close": str },
+  "tracks": { "FRAME": str, "A": str, "B": str, "C": str,
+              "BETWEEN": str, "": "" },
+  "endings": [ { "world": str, "items": [
+                 { "page": int, "title": str,
+                   "tag": "GOOD"|"OOPS"|"SECRET" } ] } ],
+  "pages": [ { "num": int, "kind": "cover"|"intro"|"story"|"ledger",
+               "track": "FRAME"|"A"|"B"|"C"|"BETWEEN"|"",
+               "title": str, "body": str,
+               "prompt": null
+                 | {"type":"goto","page":int}
+                 | {"type":"choices","choices":[{"text":str,"page":int}]}
+                 | {"type":"dice","die":"d4|d6|d8|d10|d12|d20",
+                    "rows":[{"range":str,"page":int}],
+                    "note":str?, "note_page":int?}
+                 | {"type":"ending","flavor":"good"|"bad"|"secret"} } ]
+}
+Body paragraphs are separated by a BLANK line. Plain punctuation only
+(quotes, dashes, ellipses). No markdown anywhere.`;
+
+// =====================================================================
+//  STATE
+// =====================================================================
+let project = null;
+let currentPage = 3;
+let currentBranch = "ALL";
+
+// =====================================================================
+//  PURE ENGINE
+// =====================================================================
+function roleGuidance(num) {
+  const spec = FORMULA[num] || {};
+  if (spec.ptype === "ending") return GUIDANCE["ending-" + spec.flavor];
+  if (num === 3) return GUIDANCE.start;
+  if (num === 28) return GUIDANCE.chaos;
+  if (num === 44) return GUIDANCE.hub;
+  const key = (spec.role || "").split(":")[0].trim();
+  return GUIDANCE[key] || spec.role || "";
+}
+
+function makeSkeleton(wiz) {
+  const cast = wiz.cast;
+  const names = cast.map(c => c.name.toUpperCase()).join(" · ");
+  const tracks = {
+    FRAME: (wiz.frame_world || "").toUpperCase(),
+    A: (wiz.worlds.A || "").toUpperCase(),
+    B: (wiz.worlds.B || "").toUpperCase(),
+    C: (wiz.worlds.C || "").toUpperCase(),
+    BETWEEN: "THE PLACE BETWEEN",
+    "": ""
+  };
+  const meta = {
+    pdf_title: `${wiz.title1} ${wiz.title2} - A Roll-Your-Own Adventure`,
+    title1: (wiz.title1 || "").toUpperCase(),
+    title2: (wiz.title2 || "").toUpperCase(),
+    kicker: "A ROLL-YOUR-OWN ADVENTURE",
+    tagline: wiz.tagline || "Three kids. Three worlds. Thirteen endings.",
+    starring1: `Starring  ${names}  —  and you,`,
+    starring2: "the one holding the dice.",
+    cover_line: "REQUIRES ONE SET OF ADVENTURE DICE  ·  NO ILLUSTRATIONS  ·  NO MERCY",
+    footer: `${wiz.title1} ${wiz.title2}`.toUpperCase(),
+    start_page: 3,
+    ledger_page: 46,
+    intro_open: "This book is a machine for adventures, and you three (or two, or one, or seventeen of you) are the fuel. You will read a page, make a choice or roll a die, and turn to the page the book commands. Nobody reads this book front to back. That would be chaos.",
+    intro_dice: "One set of adventure dice — the pointy kind from tabletop games. A standard seven-dice set contains every die above (ignore the percentile die; it knows what it did). No dice? Borrow, improvise, or write numbers on a paper fortune teller. Fate is flexible.",
+    rules: [
+      "Read the page. Then do what the box at the bottom says. The box is the law.",
+      "When the box says ROLL, roll that die once and follow your number. Roll first, peek never. Dice can smell cowardice.",
+      "Choices belong to you. Rolls belong to fate. Blame accordingly.",
+      "Some endings are glorious. Some are ridiculous. One is secret. When you hit THE END, check it off on the Endings Ledger (page 46) and start over from page 3.",
+      "You cannot lose this book. That is legally different from always winning."
+    ],
+    intro_close: `One more thing. The heroes of this book are ${cast[0].name} (${cast[0].age}, ${cast[0].trait}), ${cast[1].name} (${cast[1].age}, ${cast[1].trait}) and ${cast[2].name} (${cast[2].age}, ${cast[2].trait}). They stick together no matter what swallows them. So should you.`,
+    ledger_close: "All thirteen found? Then rise, Legend of the Dice. Invent a victory dance immediately.",
+    wizard: wiz
+  };
+
+  const pages = [];
+  for (let num = 1; num <= 46; num++) {
+    const spec = FORMULA[num];
+    const br = spec.branch;
+    const trackMap = {FRONT:"FRAME", A:"A", B:"B", C:"C", BETWEEN:"BETWEEN", BACK:""};
+    const track = trackMap[br];
+    const world = tracks[track] || "";
+    let title = "", body = "";
+    if (spec.kind === "story") {
+      const genre = (br === "A" || br === "B" || br === "C") ? (wiz.genres[br] || "") : "";
+      title = `[${spec.role.toUpperCase()} · p${num}]`;
+      body = `[AUTHOR: ${roleGuidance(num)}]\n\n[World: ${world}${genre ? " - " + genre : ""}. Cast: ${cast[0].name}, ${cast[1].name} and ${cast[2].name}. Write 90-150 words in the series voice: warm, funny, concrete, second person plural. End facing the prompt below.]`;
+    }
+    let prompt = null;
+    const pt = spec.ptype;
+    if (pt === "goto") {
+      prompt = {type:"goto", page: spec.goto};
+    } else if (pt === "choices") {
+      prompt = {type:"choices", choices: spec.targets.map((t,i) => ({
+        text: `If you [option ${i+1} - author writes this]`,
+        page: t
+      }))};
+    } else if (pt === "dice") {
+      prompt = {
+        type: "dice",
+        die: spec.die,
+        rows: spec.rows.map(([r,t]) => ({range: r, page: t}))
+      };
+      if (num === 3) {
+        prompt.note = wiz.secret_note || "If the die rolls off the table and vanishes, go to page 45. Seriously.";
+        prompt.note_page = 45;
+      }
+    } else if (pt === "ending") {
+      prompt = {type:"ending", flavor: spec.flavor};
+    }
+    pages.push({num, kind: spec.kind, track, title, body, prompt});
+  }
+
+  const endings = [
+    {world: tracks.A, items: [
+      {page:16, title:"Quest complete", tag:"GOOD"},
+      {page:17, title:"Kindness route", tag:"GOOD"},
+      {page:10, title:"Temptation", tag:"OOPS"},
+      {page:15, title:"The penalty", tag:"OOPS"}
+    ]},
+    {world: tracks.B, items: [
+      {page:29, title:"The lucky exit", tag:"GOOD"},
+      {page:31, title:"The world saved", tag:"GOOD"},
+      {page:27, title:"Captured by fame/fate", tag:"OOPS"},
+      {page:30, title:"The sentence", tag:"OOPS"}
+    ]},
+    {world: tracks.C, items: [
+      {page:42, title:"The race won", tag:"GOOD"},
+      {page:43, title:"Perfect answer", tag:"GOOD"},
+      {page:38, title:"Swept up", tag:"OOPS"},
+      {page:40, title:"The long contract", tag:"OOPS"}
+    ]},
+    {world: "SECRET", items: [
+      {page:45, title:"The secret ending", tag:"SECRET"}
+    ]}
+  ];
+
+  return {meta, tracks, endings, pages};
+}
+
+function defaultProject() {
+  return makeSkeleton({
+    title1: "Untitled", title2: "Sequel",
+    tagline: "Three kids. Three worlds. Thirteen endings.",
+    frame_world: "The Front Porch",
+    cast: [
+      {name:"Naomi", age:"12", trait:"maps everything in a waterproof notebook"},
+      {name:"Nekoda", age:"10", trait:"duct tape and three screwdrivers"},
+      {name:"Norah", age:"7", trait:"a jar of emergency marbles, zero fear"}
+    ],
+    worlds: {A:"World One", B:"World Two", C:"World Three"},
+    genres: {A:"fantasy", B:"science fiction", C:"historical adventure"},
+    secret_note: "If the die rolls off the table and vanishes, go to page 45. Seriously."
+  });
+}
+
+function outLinks(p) {
+  const pr = p.prompt;
+  if (!pr) return [];
+  if (pr.type === "goto") return [pr.page];
+  if (pr.type === "choices") return pr.choices.map(c => c.page);
+  if (pr.type === "dice") {
+    const pages = pr.rows.map(r => r.page);
+    if (pr.note_page) pages.push(pr.note_page);
+    return pages;
+  }
+  return [];
+}
+
+function validateProject(proj) {
+  const lines = [];
+  const pages = proj.pages || [];
+  const byNum = {};
+  pages.forEach(p => byNum[p.num] = p);
+
+  if (pages.length !== 46) lines.push(`ERROR: expected 46 pages, got ${pages.length}`);
+  for (let n = 1; n <= 46; n++) {
+    if (!byNum[n]) lines.push(`ERROR: missing page ${n}`);
+  }
+
+  for (let n = 1; n <= 46; n++) {
+    const spec = FORMULA[n];
+    const p = byNum[n];
+    if (!p) continue;
+    if (p.kind !== spec.kind) lines.push(`ERROR p${n}: kind should be ${spec.kind}, got ${p.kind}`);
+    const pr = p.prompt;
+    if (spec.ptype === "dice") {
+      if (!pr || pr.type !== "dice") lines.push(`ERROR p${n}: expected dice prompt`);
+      else {
+        if (pr.die !== spec.die) lines.push(`ERROR p${n}: die should be ${spec.die}`);
+        const targets = pr.rows.map(r => r.page).sort((a,b)=>a-b);
+        const expected = spec.rows.map(r => r[1]).sort((a,b)=>a-b);
+        if (JSON.stringify(targets) !== JSON.stringify(expected)) {
+          lines.push(`ERROR p${n}: dice targets ${targets} != formula ${expected}`);
+        }
+      }
+    } else if (spec.ptype === "choices") {
+      if (!pr || pr.type !== "choices") lines.push(`ERROR p${n}: expected choices prompt`);
+      else {
+        const targets = pr.choices.map(c => c.page).sort((a,b)=>a-b);
+        const expected = [...spec.targets].sort((a,b)=>a-b);
+        if (JSON.stringify(targets) !== JSON.stringify(expected)) {
+          lines.push(`ERROR p${n}: choice targets ${targets} != formula ${expected}`);
+        }
+      }
+    } else if (spec.ptype === "goto") {
+      if (!pr || pr.type !== "goto" || pr.page !== spec.goto)
+        lines.push(`ERROR p${n}: expected goto ${spec.goto}`);
+    } else if (spec.ptype === "ending") {
+      if (!pr || pr.type !== "ending" || pr.flavor !== spec.flavor)
+        lines.push(`ERROR p${n}: expected ending flavor ${spec.flavor}`);
+    }
+  }
+
+  const reachable = new Set();
+  const queue = [3];
+  while (queue.length) {
+    const n = queue.shift();
+    if (reachable.has(n)) continue;
+    reachable.add(n);
+    const p = byNum[n];
+    if (p) outLinks(p).forEach(t => { if (!reachable.has(t)) queue.push(t); });
+  }
+  for (let n = 4; n <= 45; n++) {
+    if (!reachable.has(n) && FORMULA[n].kind === "story")
+      lines.push(`WARN: page ${n} not reachable from page 3`);
+  }
+
+  const secrets = [];
+  pages.forEach(p => {
+    const pr = p.prompt;
+    if (pr && pr.type === "dice" && pr.note && pr.note_page) {
+      secrets.push(`p${p.num} → p${pr.note_page}: "${pr.note.slice(0,60)}${pr.note.length>60?"…":""}"`);
+    }
+  });
+  if (secrets.length) {
+    lines.push("SECRETS:");
+    secrets.forEach(s => lines.push("  " + s));
+  } else {
+    lines.push("WARN: no secret notes found (page 3 should have one)");
+  }
+
+  let placeholders = 0;
+  pages.forEach(p => {
+    if (p.kind === "story" && (p.body || "").includes("[AUTHOR:")) placeholders++;
+  });
+  lines.push(`INFO: ${placeholders} pages still contain [AUTHOR:] placeholder text`);
+
+  const endingPages = new Set();
+  (proj.endings || []).forEach(g => (g.items||[]).forEach(it => endingPages.add(it.page)));
+  for (let n = 1; n <= 46; n++) {
+    const p = byNum[n];
+    if (p && p.prompt && p.prompt.type === "ending") {
+      if (!endingPages.has(n)) lines.push(`WARN: ending page ${n} not listed in ledger`);
+    }
+  }
+
+  if (lines.filter(l => l.startsWith("ERROR")).length === 0)
+    lines.unshift("OK: no structural errors found");
+  return lines;
+}
+
+function formulaReport(proj) {
+  const lines = [];
+  lines.push("FORMULA TOPOLOGY");
+  lines.push("================");
+  for (const [br, [lo,hi]] of Object.entries(BRANCH_RANGES)) {
+    lines.push(`\n${br} (pages ${lo}–${hi}):`);
+    for (let n = lo; n <= hi; n++) {
+      const spec = FORMULA[n];
+      const p = (proj.pages || []).find(x => x.num === n);
+      const title = p ? p.title : "";
+      lines.push(`  ${String(n).padStart(2)}  ${spec.role.padEnd(42)}  ${title.slice(0,40)}`);
+    }
+  }
+  return lines;
+}
+
+function shuffleChaos(proj, rng = Math.random) {
+  const pool = [...CHAOS_POOL];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const p28 = (proj.pages || []).find(p => p.num === 28);
+  if (p28 && p28.prompt && p28.prompt.type === "dice") {
+    p28.prompt.rows = pool.map((pg, i) => ({range: String(i+1), page: pg}));
+  }
+  FORMULA[28].rows = pool.map((pg, i) => [String(i+1), pg]);
+  return pool;
+}
+
+function syncLedgerTitles(proj) {
+  const byNum = {};
+  (proj.pages || []).forEach(p => byNum[p.num] = p);
+  (proj.endings || []).forEach(g => {
+    (g.items || []).forEach(it => {
+      const p = byNum[it.page];
+      if (p && p.title && !p.title.startsWith("[")) {
+        it.title = p.title;
+      }
+    });
+  });
+}
+
+function llmAuthorPrompt(proj) {
+  const wiz = (proj.meta && proj.meta.wizard) || {};
+  const cast = wiz.cast || [{name:"?",age:"?",trait:"?"},{name:"?",age:"?",trait:"?"},{name:"?",age:"?",trait:"?"}];
+  const L = [];
+  const A = s => L.push(s);
+  A("You are the author of a children's roll-your-own-adventure gamebook series (in the spirit of 'The Dice of Destiny', 'Admit Three', and 'Three Ways from Sunday'). Write the COMPLETE next sequel as a single JSON document in the schema below.");
+  A("");
+  A("SERIES FORMULA (immutable page topology — do not change any page numbers or link targets):");
+  for (let n = 1; n <= 46; n++) {
+    const spec = FORMULA[n];
+    let link = "";
+    if (spec.ptype === "dice") link = `ROLL ${spec.die} → ` + spec.rows.map(r => `${r[0]}→${r[1]}`).join(", ");
+    else if (spec.ptype === "choices") link = "choices → " + spec.targets.join(", ");
+    else if (spec.ptype === "goto") link = `goto ${spec.goto}`;
+    else if (spec.ptype === "ending") link = `ENDING (${spec.flavor})`;
+    A(`  p${n} [${spec.branch}] ${spec.role}  ${link}`);
+  }
+  A("");
+  A("CURRENT PROJECT CONTEXT:");
+  A(`  Title: ${(proj.meta||{}).title1} ${(proj.meta||{}).title2}`);
+  A(`  Frame: ${wiz.frame_world || "?"}`);
+  A(`  Cast: ${cast.map(c => `${c.name} (${c.age}, ${c.trait})`).join("; ")}`);
+  A(`  Worlds: A=${(wiz.worlds||{}).A} (${(wiz.genres||{}).A}), B=${(wiz.worlds||{}).B} (${(wiz.genres||{}).B}), C=${(wiz.worlds||{}).C} (${(wiz.genres||{}).C})`);
+  const p28 = (proj.pages || []).find(p => p.num === 28);
+  if (p28 && p28.prompt) {
+    A("  Chaos table (p28 d12): " + p28.prompt.rows.map(r => `${r.range}→${r.page}`).join(", "));
+  }
+  A("");
+  A(STYLE_SAMPLES);
+  A("");
+  A(SCHEMA_DOC);
+  A("");
+  A("Write every story page body in the series voice (warm, funny, concrete, second-person plural). Keep the exact prompt structure and page targets. Return ONLY the JSON document.");
+  return L.join("\n");
+}
+
+// =====================================================================
+//  UI HELPERS
+// =====================================================================
+function setStatus(msg) {
+  document.getElementById("status").textContent = msg;
+}
+
+function isPlaceholder(body) {
+  return !body || body.includes("[AUTHOR:") || body.trim().length < 40;
+}
+
+function pageDotClass(p) {
+  if (p.prompt && p.prompt.type === "ending") {
+    return "ending-" + (p.prompt.flavor || "bad");
+  }
+  return isPlaceholder(p.body) ? "empty" : "done";
+}
+
+// =====================================================================
+//  TABS
+// =====================================================================
+document.getElementById("main-tabs").addEventListener("click", e => {
+  if (e.target.tagName !== "BUTTON") return;
+  document.querySelectorAll("#main-tabs button").forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.getElementById("panel-" + e.target.dataset.panel).classList.add("active");
+  if (e.target.dataset.panel === "pages") renderPageList();
+  if (e.target.dataset.panel === "ledger") populateLedgerForm();
+});
+
+// =====================================================================
+//  WIZARD
+// =====================================================================
+function buildCastFields() {
+  const el = document.getElementById("cast-fields");
+  el.innerHTML = "";
+  for (let i = 0; i < 3; i++) {
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <label>Hero ${i+1} Name</label>
+      <input type="text" id="wiz-cast${i}-name" value="${["Naomi","Nekoda","Norah"][i]}">
+      <label style="margin-top:0.3rem">Age</label>
+      <input type="text" id="wiz-cast${i}-age" value="${["12","10","7"][i]}">
+      <label style="margin-top:0.3rem">Trait</label>
+      <input type="text" id="wiz-cast${i}-trait" value="${[
+        "maps everything in a waterproof notebook",
+        "duct tape and three screwdrivers",
+        "a jar of emergency marbles, zero fear"
+      ][i]}">`;
+    el.appendChild(div);
+  }
+}
+buildCastFields();
+
+function readWizard() {
+  return {
+    title1: document.getElementById("wiz-title1").value.trim(),
+    title2: document.getElementById("wiz-title2").value.trim(),
+    tagline: document.getElementById("wiz-tagline").value.trim(),
+    frame_world: document.getElementById("wiz-frame").value.trim(),
+    cast: [0,1,2].map(i => ({
+      name: document.getElementById(`wiz-cast${i}-name`).value.trim(),
+      age: document.getElementById(`wiz-cast${i}-age`).value.trim(),
+      trait: document.getElementById(`wiz-cast${i}-trait`).value.trim()
+    })),
+    worlds: {
+      A: document.getElementById("wiz-worldA").value.trim(),
+      B: document.getElementById("wiz-worldB").value.trim(),
+      C: document.getElementById("wiz-worldC").value.trim()
+    },
+    genres: {
+      A: document.getElementById("wiz-genreA").value.trim(),
+      B: document.getElementById("wiz-genreB").value.trim(),
+      C: document.getElementById("wiz-genreC").value.trim()
+    },
+    secret_note: document.getElementById("wiz-secret").value.trim()
+  };
+}
+
+function createSkeleton() {
+  const wiz = readWizard();
+  project = makeSkeleton(wiz);
+  currentPage = 3;
+  setStatus(`Created skeleton: ${project.meta.title1} ${project.meta.title2}`);
+  document.querySelector('[data-panel="pages"]').click();
+  renderPageList();
+  selectPage(3);
+}
+
+function newProject() {
+  if (project && !confirm("Discard current project and create a new skeleton?")) return;
+  createSkeleton();
+}
+
+function shuffleChaos() {
+  if (!project) { alert("No project loaded"); return; }
+  const pool = shuffleChaos(project);
+  setStatus("Chaos table (p28) reshuffled: " + pool.join(", "));
+  if (currentPage === 28) selectPage(28);
+}
+
+// =====================================================================
+//  PAGES
+// =====================================================================
+document.getElementById("branch-btns").addEventListener("click", e => {
+  if (e.target.tagName !== "BUTTON") return;
+  document.querySelectorAll("#branch-btns button").forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+  currentBranch = e.target.dataset.branch;
+  renderPageList();
+});
+
+function renderPageList() {
+  const list = document.getElementById("page-list");
+  list.innerHTML = "";
+  if (!project) {
+    list.innerHTML = "<p class='help' style='padding:0.5rem'>No project</p>";
+    return;
+  }
+  let pages = project.pages.slice().sort((a,b) => a.num - b.num);
+  if (currentBranch !== "ALL") {
+    const [lo, hi] = BRANCH_RANGES[currentBranch];
+    pages = pages.filter(p => p.num >= lo && p.num <= hi);
+  }
+  pages.forEach(p => {
+    const btn = document.createElement("button");
+    btn.className = "page-btn" + (p.num === currentPage ? " active" : "");
+    btn.innerHTML = `
+      <span class="num">${p.num}</span>
+      <span class="dot ${pageDotClass(p)}"></span>
+      <span class="role">${(FORMULA[p.num]||{}).role || p.kind}</span>`;
+    btn.onclick = () => selectPage(p.num);
+    list.appendChild(btn);
+  });
+}
+
+function selectPage(num) {
+  currentPage = num;
+  renderPageList();
+  const p = project.pages.find(x => x.num === num);
+  if (!p) return;
+  const ed = document.getElementById("page-editor");
+  const spec = FORMULA[num] || {};
+  let promptHTML = "";
+  const pr = p.prompt;
+  if (pr) {
+    if (pr.type === "choices") {
+      promptHTML = `<div class="prompt-editor"><h3>Choices (targets locked)</h3>`;
+      pr.choices.forEach((c, i) => {
+        promptHTML += `<div class="choice-row">
+          <input type="text" data-choice="${i}" value="${esc(c.text)}" oninput="updateChoice(${i}, this.value)">
+          <span class="pg">→ ${c.page}</span>
+        </div>`;
+      });
+      promptHTML += `</div>`;
+    } else if (pr.type === "dice") {
+      promptHTML = `<div class="prompt-editor"><h3>Dice ${pr.die} (targets locked)</h3>`;
+      pr.rows.forEach((r, i) => {
+        promptHTML += `<div class="dice-row">
+          <input type="text" data-row="${i}" value="${esc(r.range)}" oninput="updateDiceRange(${i}, this.value)">
+          <span class="pg">→ ${r.page}</span>
+        </div>`;
+      });
+      if (pr.note !== undefined || num === 3) {
+        promptHTML += `<label style="margin-top:0.5rem">Secret / italic note</label>
+          <input type="text" id="note-text" value="${esc(pr.note || "")}" oninput="updateNote(this.value)">
+          <label style="margin-top:0.3rem">Note target page</label>
+          <input type="number" id="note-page" value="${pr.note_page || ""}" style="width:80px" oninput="updateNotePage(this.value)">`;
+      }
+      promptHTML += `</div>`;
+    } else if (pr.type === "goto") {
+      promptHTML = `<div class="prompt-editor"><h3>Go to page ${pr.page} (locked)</h3></div>`;
+    } else if (pr.type === "ending") {
+      promptHTML = `<div class="prompt-editor"><h3>Ending — ${pr.flavor.toUpperCase()} (locked)</h3></div>`;
+    }
+  }
+
+  ed.innerHTML = `
+    <div>
+      <label>Page ${num} — ${spec.role || p.kind}</label>
+      <input type="text" id="ed-title" value="${esc(p.title)}" oninput="updateTitle(this.value)">
+    </div>
+    <div>
+      <label>Body (blank line between paragraphs)</label>
+      <textarea id="ed-body" rows="12" oninput="updateBody(this.value)">${esc(p.body)}</textarea>
+    </div>
+    ${promptHTML}
+    <p class="help">Guidance: ${roleGuidance(num)}</p>
+  `;
+  renderPreview(p);
+}
+
+function esc(s) {
+  return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function updateTitle(v) {
+  const p = project.pages.find(x => x.num === currentPage);
+  if (p) { p.title = v; renderPreview(p); renderPageList(); }
+}
+function updateBody(v) {
+  const p = project.pages.find(x => x.num === currentPage);
+  if (p) { p.body = v; renderPreview(p); renderPageList(); }
+}
+function updateChoice(i, v) {
+  const p = project.pages.find(x => x.num === currentPage);
+  if (p && p.prompt && p.prompt.choices) {
+    p.prompt.choices[i].text = v;
+    renderPreview(p);
+  }
+}
+function updateDiceRange(i, v) {
+  const p = project.pages.find(x => x.num === currentPage);
+  if (p && p.prompt && p.prompt.rows) {
+    p.prompt.rows[i].range = v;
+    renderPreview(p);
+  }
+}
+function updateNote(v) {
+  const p = project.pages.find(x => x.num === currentPage);
+  if (p && p.prompt) { p.prompt.note = v; renderPreview(p); }
+}
+function updateNotePage(v) {
+  const p = project.pages.find(x => x.num === currentPage);
+  if (p && p.prompt) {
+    p.prompt.note_page = v ? parseInt(v, 10) : undefined;
+    renderPreview(p);
+  }
+}
+
+function renderPreview(p) {
+  const prev = document.getElementById("preview");
+  const inner = prev.querySelector(".inner");
+  prev.className = "preview" + (p.kind === "cover" ? " cover" : "");
+  const tracks = project.tracks || {};
+  const meta = project.meta || {};
+
+  if (p.kind === "cover") {
+    inner.innerHTML = `
+      <div class="ctitle">${esc(meta.title1)}<br>${esc(meta.title2)}</div>
+      <div class="ctag">${esc(meta.tagline)}</div>
+      <div class="cstart">Turn the page to begin.</div>`;
+    return;
+  }
+  if (p.kind === "intro") {
+    inner.innerHTML = `
+      <div class="pnum">2</div>
+      <div class="ptitle">HOW TO PLAY</div>
+      <div class="pbody">${esc((meta.intro_open||"").slice(0,300))}…</div>`;
+    return;
+  }
+  if (p.kind === "ledger") {
+    let html = `<div class="pnum">46</div><div class="ptitle">THE ENDINGS LEDGER</div><div class="pbody">`;
+    (project.endings || []).forEach(g => {
+      html += `<strong>${esc(g.world)}</strong><br>`;
+      (g.items||[]).forEach(it => {
+        html += `☐ ${esc(it.title)} — p${it.page}<br>`;
+      });
+      html += "<br>";
+    });
+    html += `</div>`;
+    inner.innerHTML = html;
+    return;
+  }
+
+  let html = "";
+  const track = tracks[p.track] || "";
+  if (track) html += `<div class="track">${esc(track)}</div>`;
+  html += `<div class="pnum">${p.num}</div>`;
+  if (p.title) html += `<div class="ptitle">${esc(p.title)}</div>`;
+  html += `<div class="pbody">${esc(p.body)}</div>`;
+
+  const pr = p.prompt;
+  if (pr) {
+    html += `<div class="prompt-box">`;
+    if (pr.type === "choices") {
+      pr.choices.forEach(c => {
+        html += `${esc(c.text)} → turn to page ${c.page}<br>`;
+      });
+    } else if (pr.type === "dice") {
+      html += `<div class="die">ROLL THE ${pr.die.toUpperCase()}</div>`;
+      pr.rows.forEach(r => {
+        html += `${esc(r.range)} → page ${r.page}<br>`;
+      });
+      if (pr.note) html += `<div class="note">${esc(pr.note)}</div>`;
+    } else if (pr.type === "goto") {
+      html += `Turn to page ${pr.page}.`;
+    } else if (pr.type === "ending") {
+      html += `<strong>THE END</strong> (${pr.flavor})`;
+    }
+    html += `</div>`;
+  }
+  inner.innerHTML = html;
+}
+
+// =====================================================================
+//  LEDGER / META
+// =====================================================================
+function populateLedgerForm() {
+  if (!project) return;
+  const m = project.meta || {};
+  ["pdf_title","footer","title1","title2","tagline","kicker","starring1","starring2","cover_line",
+   "intro_open","intro_dice","intro_close","ledger_close"].forEach(k => {
+    const el = document.getElementById("meta-" + k);
+    if (el) el.value = m[k] || "";
+  });
+  const rulesEl = document.getElementById("meta-rules");
+  if (rulesEl) rulesEl.value = (m.rules || []).join("\n");
+  const t = project.tracks || {};
+  ["FRAME","A","B","C","BETWEEN"].forEach(k => {
+    const el = document.getElementById("track-" + k);
+    if (el) el.value = t[k] || "";
+  });
+  document.getElementById("endings-json").value = JSON.stringify(project.endings || [], null, 2);
+}
+
+function applyLedgerMeta() {
+  if (!project) return;
+  const m = project.meta;
+  ["pdf_title","footer","title1","title2","tagline","kicker","starring1","starring2","cover_line",
+   "intro_open","intro_dice","intro_close","ledger_close"].forEach(k => {
+    const el = document.getElementById("meta-" + k);
+    if (el) m[k] = el.value;
+  });
+  m.rules = document.getElementById("meta-rules").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const t = project.tracks;
+  ["FRAME","A","B","C","BETWEEN"].forEach(k => {
+    const el = document.getElementById("track-" + k);
+    if (el) t[k] = el.value;
+  });
+  try {
+    project.endings = JSON.parse(document.getElementById("endings-json").value);
+    setStatus("Meta, tracks & endings applied");
+  } catch (e) {
+    alert("Invalid endings JSON: " + e.message);
+  }
+}
+
+function syncLedger() {
+  if (!project) return;
+  applyLedgerMeta();
+  syncLedgerTitles(project);
+  document.getElementById("endings-json").value = JSON.stringify(project.endings, null, 2);
+  setStatus("Ledger titles synced from page titles");
+}
+
+// =====================================================================
+//  VALIDATE
+// =====================================================================
+function runValidate() {
+  if (!project) { alert("No project"); return; }
+  const lines = validateProject(project);
+  const out = document.getElementById("validate-out");
+  out.innerHTML = lines.map(l => {
+    if (l.startsWith("ERROR") || l.startsWith("WARN")) return `<span class="err">${esc(l)}</span>`;
+    if (l.startsWith("OK") || l.startsWith("INFO") || l.startsWith("SECRETS")) return `<span class="ok">${esc(l)}</span>`;
+    return `<span class="info">${esc(l)}</span>`;
+  }).join("\n");
+}
+
+function runFormulaReport() {
+  if (!project) { alert("No project"); return; }
+  const lines = formulaReport(project);
+  document.getElementById("validate-out").textContent = lines.join("\n");
+}
+
+// =====================================================================
+//  LLM
+// =====================================================================
+function generateLLM() {
+  if (!project) { alert("No project"); return; }
+  const text = llmAuthorPrompt(project);
+  document.getElementById("llm-out").value = text;
+  setStatus("LLM prompt generated (" + text.length + " chars)");
+  document.querySelector('[data-panel="llm"]').click();
+}
+
+function copyLLM() {
+  const ta = document.getElementById("llm-out");
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(() => setStatus("Copied to clipboard"));
+}
+
+// =====================================================================
+//  FILE I/O
+// =====================================================================
+function saveJSON() {
+  if (!project) { alert("No project"); return; }
+  const blob = new Blob([JSON.stringify(project, null, 2)], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const name = ((project.meta || {}).title1 || "project").replace(/\s+/g, "_");
+  a.download = name + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus("Saved " + a.download);
+}
+
+function openFile(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      project = JSON.parse(reader.result);
+      currentPage = 3;
+      setStatus("Loaded " + file.name + " (" + (project.pages||[]).length + " pages)");
+      document.querySelector('[data-panel="pages"]').click();
+      renderPageList();
+      selectPage(3);
+    } catch (e) {
+      alert("Failed to parse JSON: " + e.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = "";
+}
+
+function importLLMJSON() {
+  const raw = prompt("Paste the full JSON returned by the LLM:");
+  if (!raw) return;
+  try {
+    project = JSON.parse(raw);
+    currentPage = 3;
+    setStatus("Imported LLM JSON (" + (project.pages||[]).length + " pages)");
+    document.querySelector('[data-panel="pages"]').click();
+    renderPageList();
+    selectPage(3);
+  } catch (e) {
+    alert("Invalid JSON: " + e.message);
+  }
+}
+
+// =====================================================================
+//  PDF BUILDER (jsPDF — produces a real multi-page downloadable PDF)
+// =====================================================================
+function buildPDF() {
+  if (!project) { alert("No project loaded"); return; }
+  if (typeof window.jspdf === "undefined") {
+    alert("jsPDF library failed to load. Check your network connection and reload.");
+    return;
+  }
+  setStatus("Building PDF…");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pages = (project.pages || []).slice().sort((a,b) => a.num - b.num);
+  const meta = project.meta || {};
+  const tracks = project.tracks || {};
+  const PW = 612, PH = 792;
+  const ML = 72, MR = 72, MT = 60, MB = 60;
+  const contentW = PW - ML - MR;
+
+  function setInk() { doc.setTextColor(30, 30, 35); doc.setDrawColor(30, 30, 35); }
+
+  function wrapText(text, font, size, maxW) {
+    doc.setFont(font, "normal");
+    doc.setFontSize(size);
+    return doc.splitTextToSize(text || "", maxW);
+  }
+
+  pages.forEach((p, idx) => {
+    if (idx > 0) doc.addPage();
+    setInk();
+
+    if (p.kind === "cover") {
+      doc.setLineWidth(2);
+      doc.rect(40, 40, PW - 80, PH - 80);
+      doc.setFont("times", "bold");
+      doc.setFontSize(28);
+      doc.text(meta.title1 || "", PW/2, 280, { align: "center" });
+      doc.text(meta.title2 || "", PW/2, 315, { align: "center" });
+      doc.setFont("times", "italic");
+      doc.setFontSize(12);
+      doc.text(meta.tagline || "", PW/2, 380, { align: "center", maxWidth: contentW });
+      doc.setFont("times", "bold");
+      doc.setFontSize(10);
+      doc.text("Turn the page to begin.", PW/2, 700, { align: "center" });
+      if (meta.cover_line) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(meta.cover_line, PW/2, 740, { align: "center", maxWidth: contentW });
+      }
+      return;
+    }
+
+    if (p.kind === "intro") {
+      doc.setLineWidth(1.5);
+      doc.circle(PW/2, 70, 14);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("2", PW/2, 74, { align: "center" });
+      doc.setFont("times", "bold");
+      doc.setFontSize(16);
+      doc.text("HOW TO PLAY", PW/2, 110, { align: "center" });
+      let y = 140;
+      doc.setFont("times", "normal");
+      doc.setFontSize(11);
+      const blocks = [
+        meta.intro_open,
+        meta.intro_dice,
+        ...(meta.rules || []).map((r,i) => `${i+1}. ${r}`),
+        meta.intro_close
+      ].filter(Boolean);
+      blocks.forEach(block => {
+        const lines = wrapText(block, "times", 11, contentW);
+        lines.forEach(ln => {
+          if (y > PH - MB) return;
+          doc.text(ln, ML, y);
+          y += 15;
+        });
+        y += 10;
+      });
+      return;
+    }
+
+    if (p.kind === "ledger") {
+      doc.setLineWidth(1.5);
+      doc.circle(PW/2, 70, 14);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("46", PW/2, 74, { align: "center" });
+      doc.setFont("times", "bold");
+      doc.setFontSize(16);
+      doc.text("THE ENDINGS LEDGER", PW/2, 110, { align: "center" });
+      let y = 145;
+      (project.endings || []).forEach(g => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text(g.world || "", ML, y);
+        y += 18;
+        (g.items || []).forEach(it => {
+          doc.setLineWidth(0.8);
+          doc.rect(ML, y - 9, 11, 11);
+          doc.setFont("times", "normal");
+          doc.setFontSize(10);
+          doc.text(`${it.title || ""}  —  page ${it.page}`, ML + 18, y);
+          y += 16;
+        });
+        y += 10;
+      });
+      if (meta.ledger_close) {
+        y += 10;
+        doc.setFont("times", "italic");
+        doc.setFontSize(10);
+        const lines = wrapText(meta.ledger_close, "times", 10, contentW);
+        lines.forEach(ln => { doc.text(ln, ML, y); y += 14; });
+      }
+      return;
+    }
+
+    // story page
+    const track = tracks[p.track] || "";
+    if (track) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text(track, PW/2, 42, { align: "center" });
+      doc.setLineWidth(0.6);
+      doc.line(ML, 48, ML + 90, 48);
+      doc.line(PW - MR - 90, 48, PW - MR, 48);
+    }
+    doc.setLineWidth(1.5);
+    doc.circle(PW/2, 72, 13);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(String(p.num), PW/2, 76, { align: "center" });
+
+    let y = 100;
+    if (p.title) {
+      doc.setFont("times", "bold");
+      doc.setFontSize(12);
+      const titleLines = wrapText(p.title, "times", 12, contentW);
+      titleLines.forEach(ln => { doc.text(ln, PW/2, y, { align: "center" }); y += 15; });
+      y += 6;
+    }
+
+    doc.setFont("times", "normal");
+    doc.setFontSize(11);
+    const paras = (p.body || "").split(/\n\n+/);
+    paras.forEach(para => {
+      const clean = para.replace(/\n/g, " ").trim();
+      if (!clean) return;
+      const lines = wrapText(clean, "times", 11, contentW);
+      lines.forEach(ln => {
+        if (y > PH - 160) return;
+        doc.text(ln, ML, y);
+        y += 15;
+      });
+      y += 8;
+    });
+
+    const pr = p.prompt;
+    if (pr) {
+      const boxTop = Math.max(y + 12, PH - 150);
+      let boxLines = [];
+      if (pr.type === "choices") {
+        pr.choices.forEach(c => boxLines.push(`${c.text}  →  page ${c.page}`));
+      } else if (pr.type === "dice") {
+        boxLines.push(`ROLL THE ${(pr.die || "").toUpperCase()}`);
+        pr.rows.forEach(r => boxLines.push(`${r.range}  →  page ${r.page}`));
+        if (pr.note) boxLines.push("");
+      } else if (pr.type === "goto") {
+        boxLines.push(`Turn to page ${pr.page}.`);
+      } else if (pr.type === "ending") {
+        boxLines.push("THE END");
+        boxLines.push(`(${(pr.flavor || "").toUpperCase()})`);
+      }
+      let boxH = 14 + boxLines.length * 13 + (pr.note ? 20 : 0) + 8;
+      if (boxTop + boxH > PH - 30) boxH = PH - 30 - boxTop;
+
+      doc.setLineWidth(1.4);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(ML - 4, boxTop, contentW + 8, boxH, "FD");
+
+      let by = boxTop + 14;
+      doc.setFont("times", "normal");
+      doc.setFontSize(9.5);
+      boxLines.forEach((ln, i) => {
+        if (pr.type === "dice" && i === 0) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.text(ln, ML + 4, by);
+          doc.setFont("times", "normal");
+          doc.setFontSize(9.5);
+        } else if (pr.type === "ending" && i === 0) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(11);
+          doc.text(ln, PW/2, by, { align: "center" });
+          doc.setFont("times", "normal");
+          doc.setFontSize(9.5);
+        } else {
+          doc.text(ln, ML + 4, by);
+        }
+        by += 13;
+      });
+      if (pr.note) {
+        doc.setFont("times", "italic");
+        doc.setFontSize(8.5);
+        const noteLines = wrapText(pr.note, "times", 8.5, contentW - 10);
+        noteLines.forEach(ln => { doc.text(ln, ML + 4, by); by += 11; });
+      }
+    }
+
+    if (meta.footer) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 105);
+      doc.text(meta.footer, PW/2, PH - 22, { align: "center" });
+      setInk();
+    }
+  });
+
+  const fname = ((meta.title1 || "gamebook") + "_" + (meta.title2 || "book")).replace(/\s+/g, "_") + ".pdf";
+  doc.save(fname);
+  setStatus("PDF downloaded: " + fname);
+}
+
+// Boot
+project = defaultProject();
+setStatus("Default skeleton loaded — customize via Wizard or start writing");
+renderPageList();
+</script>
+</body>
+</html>
